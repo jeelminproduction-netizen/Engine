@@ -1,0 +1,57 @@
+
+name: Build Engine Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - ".github/workflows/build-windows.yml"
+
+jobs:
+  build:
+    runs-on: windows-2022
+
+    steps:
+      - name: Get engine source
+        uses: actions/checkout@v4
+
+      - name: Install legacy ISPC compiler
+        shell: pwsh
+        run: |
+          $url = "https://downloads.sourceforge.net/project/ispcmirror/v1.9.2/ispc-v1.9.2-windows.zip"
+          curl.exe -fL --retry 3 -o "$env:RUNNER_TEMP\ispc.zip" $url
+          if ($LASTEXITCODE -ne 0) { throw "ISPC download failed" }
+          Expand-Archive "$env:RUNNER_TEMP\ispc.zip" "$env:RUNNER_TEMP\ispc" -Force
+          $compiler = Get-ChildItem "$env:RUNNER_TEMP\ispc" -Recurse -Filter ispc.exe | Select-Object -First 1
+          if (-not $compiler) { throw "ISPC executable not found" }
+          $compiler.DirectoryName | Out-File $env:GITHUB_PATH -Append
+          & $compiler.FullName --version
+
+      - name: Configure engine
+        shell: pwsh
+        run: |
+          cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+
+      - name: Compile graphics demo
+        shell: pwsh
+        run: |
+          cmake --build build --config Release --target geom_compression --parallel 4
+
+      - name: Package executable and resources
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path package -Force | Out-Null
+          $bin = "build/output/bin/Release"
+          if (!(Test-Path "$bin/geom_compression.exe")) {
+            throw "Demo executable not found"
+          }
+          Copy-Item "$bin/*" package -Recurse -Force
+          Copy-Item res package/res -Recurse -Force
+
+      - name: Upload Windows build
+        uses: actions/upload-artifact@v4
+        with:
+          name: Engine-Windows-x64
+          path: package/
+          if-no-files-found: error
