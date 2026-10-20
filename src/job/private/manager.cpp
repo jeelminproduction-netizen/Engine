@@ -8,6 +8,7 @@
 
 #include "Remotery.h"
 
+#include <cstdio>
 #include <utility>
 
 #define VERBOSE_LOGGING (0)
