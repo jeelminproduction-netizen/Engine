@@ -16,17 +16,11 @@ jobs:
       - name: Get engine source
         uses: actions/checkout@v4
 
-      - name: Install legacy ISPC compiler
-        shell: pwsh
-        run: |
-          $url = "https://downloads.sourceforge.net/project/ispcmirror/v1.9.2/ispc-v1.9.2-windows.zip"
-          curl.exe -fL --retry 3 -o "$env:RUNNER_TEMP\ispc.zip" $url
-          if ($LASTEXITCODE -ne 0) { throw "ISPC download failed" }
-          Expand-Archive "$env:RUNNER_TEMP\ispc.zip" "$env:RUNNER_TEMP\ispc" -Force
-          $compiler = Get-ChildItem "$env:RUNNER_TEMP\ispc" -Recurse -Filter ispc.exe | Select-Object -First 1
-          if (-not $compiler) { throw "ISPC executable not found" }
-          $compiler.DirectoryName | Out-File $env:GITHUB_PATH -Append
-          & $compiler.FullName --version
+     
+      - name: Install ISPC compiler
+        uses: ispc/install-ispc-action@main
+        with:
+          version: 1.22.0
 
       - name: Configure engine
         shell: pwsh
